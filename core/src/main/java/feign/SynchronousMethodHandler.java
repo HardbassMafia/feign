@@ -84,6 +84,7 @@ final class SynchronousMethodHandler implements MethodHandler {
     RequestTemplate template = buildTemplateFromArgs.create(argv);
     Options options = findOptions(argv);
     Retryer retryer = this.retryer.clone();
+    //todolu : 实际HTTP调用的地方
     while (true) {
       try {
         return executeAndDecode(template, options);

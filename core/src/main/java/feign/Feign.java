@@ -258,6 +258,7 @@ public abstract class Feign {
     }
 
     public <T> T target(Target<T> target) {
+      //todolu: SpringCloudFeign  起点
       return build().newInstance(target);
     }
 

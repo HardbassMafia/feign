@@ -32,8 +32,7 @@ public class ReflectiveFeign extends Feign {
   private final InvocationHandlerFactory factory;
   private final QueryMapEncoder queryMapEncoder;
 
-  ReflectiveFeign(ParseHandlersByName targetToHandlersByName, InvocationHandlerFactory factory,
-      QueryMapEncoder queryMapEncoder) {
+  ReflectiveFeign(ParseHandlersByName targetToHandlersByName, InvocationHandlerFactory factory, QueryMapEncoder queryMapEncoder) {
     this.targetToHandlersByName = targetToHandlersByName;
     this.factory = factory;
     this.queryMapEncoder = queryMapEncoder;
@@ -46,14 +45,22 @@ public class ReflectiveFeign extends Feign {
   @SuppressWarnings("unchecked")
   @Override
   public <T> T newInstance(Target<T> target) {
+    /**
+         key 为 类#方法(入参)  value为 被代理后的对象（实现类  调用就会走：
+         @see SynchronousMethodHandler#invoke(java.lang.Object[])
+     */
     Map<String, MethodHandler> nameToHandler = targetToHandlersByName.apply(target);
+    //key 为方法  value 为 proxy
     Map<Method, MethodHandler> methodToHandler = new LinkedHashMap<Method, MethodHandler>();
+    //
     List<DefaultMethodHandler> defaultMethodHandlers = new LinkedList<DefaultMethodHandler>();
 
     for (Method method : target.type().getMethods()) {
       if (method.getDeclaringClass() == Object.class) {
+        //object的方法不进行代理
         continue;
       } else if (Util.isDefault(method)) {
+        //todolu
         DefaultMethodHandler handler = new DefaultMethodHandler(method);
         defaultMethodHandlers.add(handler);
         methodToHandler.put(method, handler);
@@ -61,13 +68,18 @@ public class ReflectiveFeign extends Feign {
         methodToHandler.put(method, nameToHandler.get(Feign.configKey(target.type(), method)));
       }
     }
+    /**
+       @see feign.ReflectiveFeign.FeignInvocationHandler#invoke(java.lang.Object, java.lang.reflect.Method, java.lang.Object[])
+       当方法进来的时候会根据Method为Key获取对应的MethodHandler来invoke
+     */
     InvocationHandler handler = factory.create(target, methodToHandler);
-    T proxy = (T) Proxy.newProxyInstance(target.type().getClassLoader(),
-        new Class<?>[] {target.type()}, handler);
+    T proxy = (T) Proxy.newProxyInstance(target.type().getClassLoader(), new Class<?>[] {target.type()}, handler);
 
+    //todolu
     for (DefaultMethodHandler defaultMethodHandler : defaultMethodHandlers) {
       defaultMethodHandler.bindTo(proxy);
     }
+    //返回代理对象
     return proxy;
   }
 
@@ -153,8 +165,7 @@ public class ReflectiveFeign extends Feign {
       for (MethodMetadata md : metadata) {
         BuildTemplateByResolvingArgs buildTemplate;
         if (!md.formParams().isEmpty() && md.template().bodyTemplate() == null) {
-          buildTemplate =
-              new BuildFormEncodedTemplateFromArgs(md, encoder, queryMapEncoder, target);
+          buildTemplate = new BuildFormEncodedTemplateFromArgs(md, encoder, queryMapEncoder, target);
         } else if (md.bodyIndex() != null) {
           buildTemplate = new BuildEncodedTemplateFromArgs(md, encoder, queryMapEncoder, target);
         } else {
@@ -165,8 +176,7 @@ public class ReflectiveFeign extends Feign {
             throw new IllegalStateException(md.configKey() + " is not a method handled by feign");
           });
         } else {
-          result.put(md.configKey(),
-              factory.create(target, md, buildTemplate, options, decoder, errorDecoder));
+          result.put(md.configKey(), factory.create(target, md, buildTemplate, options, decoder, errorDecoder));
         }
       }
       return result;
